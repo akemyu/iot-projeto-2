@@ -19,8 +19,7 @@ const char* BROKER_MQTT = "test.mosquitto.org";
 const int BROKER_PORT = 1883;
 
 // Tópico inscrito
-const char* TOPICO = "senai-code-xp/vagas/06";
-String TOPICO_GERAL = "senai-code-xp/vagas/";
+const char* TOPICO = "senai-code-xp/vagas/+";
 
 // Pinos LCD
 const int en = 6, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
@@ -37,39 +36,46 @@ int intervaloDisplay = 10000;
 
 // Tempo para verificar vagas
 long timeVagas = 0;
-int intervaloVagas = 1000;
+int intervaloVagas = 2000;
 
 
 // Vagas
-int numeroVagas = 0;
-int estadoVaga06 = -1;
+int vagasDisponiveis = 0;
+int vagasOcupadas = 0;
+const int tamVaga = 31; // Número de vagas disponíveis
+int estadoVaga[tamVaga]; // Estados das vagas existentes
 
 char message_buff[100];
 
 void callback(char* topic, byte* payload, unsigned int length) {
 
-  Serial.println("Recebeu da fila: ");
+  //Serial.println("Recebeu da fila: ");
+  Serial.println(topic);
   acionarLed(pinoRecebe);
 
-  Serial.println(topic);
-  String str_topic = topic;
-  //str_topic = str_topic.substring(TOPICO_GERAL.length()-1);
-  Serial.println("Topico convertido:");
-  Serial.println(str_topic);
+  if (isNumeric(topic[20], topic[21])) {
+    // Conversão ASCII
+    int int_vaga1 = (int) topic[20] - 48;
+    int int_vaga2 = (int) topic[21] - 48;
 
-  if (strcmp(topic,TOPICO)==0){
-    Serial.println("Topico OK!");
+    // Juntando os dígitos
+    int vaga = int_vaga1 * 10 + int_vaga2;
+
+    //Serial.print("vaga: ");
+    //Serial.println(vaga);
+
+    char* payloadAsChar = payload;
+    // Workaround para pequeno bug na biblioteca
+    payloadAsChar[length] = 0;
+
+    // Converter em tipo String para conveniência
+    String msg = String(payloadAsChar);
+    estadoVaga[vaga] = msg.toInt();
+
+    Serial.print("EstadoVaga: ");
+    Serial.println(estadoVaga[vaga]);
+    Serial.println("");
   }
-  
-  char* payloadAsChar = payload;
-  // Workaround para pequeno bug na biblioteca
-  payloadAsChar[length] = 0;
-
-  // Converter em tipo String para conveniência
-  String msg = String(payloadAsChar);
-  estadoVaga06 = msg.toInt();
-
-
 }
 
 EthernetClient ethClient;
@@ -91,7 +97,8 @@ void setup() {
 
   // Inicializando LCD (Colunas e linhas)
   lcd.begin(16, 2);
-  // Print a message to the LCD.
+
+  preencherArray();
 
 }
 
@@ -101,22 +108,37 @@ void loop() {
   // set the cursor to column 0, line 1
   // (note: line 1 is the second row, since counting begins with 0):
 
-  imprimeVagas();
+  imprimirVagas();
 }
 
-void imprimeVagas() {
+void imprimirVagas() {
+
   if (millis() - timeVagas > intervaloVagas) {
-    if (estadoVaga06 == 1) {
-      numeroVagas = 1;
-    }
-    else if (estadoVaga06 == 0) {
-      numeroVagas = 0;
+    vagasDisponiveis = 0;
+    vagasOcupadas = 0;
+    for (int i = 1; i < tamVaga; i++) {
+      if (estadoVaga[i] == 1) {
+        vagasDisponiveis++;
+      }
+      else if (estadoVaga[i] == 0) {
+        vagasOcupadas++;
+      }
     }
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Vaga 06:");
-    lcd.setCursor(0, 1);
-    lcd.print(numeroVagas);
+    lcd.print("Dis: ");
+    lcd.setCursor(5, 0);
+    lcd.print(vagasDisponiveis);
+
+    lcd.setCursor(8, 0);
+    lcd.print("Ocu: ");
+    lcd.setCursor(13, 0);
+    lcd.print(vagasOcupadas);
+
+    if (vagasDisponiveis == 0) {
+      lcd.setCursor(0, 1);
+      lcd.print("Sem vagas");
+    }
     timeVagas = millis();
   }
 }
@@ -173,6 +195,17 @@ void acionarLed(uint8_t pino) {
   digitalWrite(pino, HIGH);
   delay(20);
   digitalWrite(pino, LOW);
+}
+
+bool isNumeric(char c1, char c2) {
+  if (isDigit(c1) && isDigit(c2)) return true;
+  return false;
+}
+
+void preencherArray() {
+  for (int i = 0; i < tamVaga; i++) {
+    estadoVaga[i] = -1;
+  }
 }
 
 
