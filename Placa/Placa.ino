@@ -4,12 +4,13 @@
 #include <SPI.h>
 #include <LiquidCrystal.h>
 
-#define ID_MQTT  "arduino-04"     //id mqtt (para identificação de sessão)
+#define ID_MQTT  "arduino-05"     //id mqtt (para identificação de sessão)
 
 #define pinoConexao  A2  // Led conexão
+#define pinoRecebe   A3
 
 // Atualizar ultimo valor para ID do seu Kit para evitar duplicatas
-const byte mac[] = { 0xDE, 0xED, 0xBA, 0xFE, 0xFE, 0x04 };
+const byte mac[] = { 0xDE, 0xED, 0xBA, 0xFE, 0xFE, 0x05 };
 
 // Endereço do Cloud MQTT
 const char* BROKER_MQTT = "test.mosquitto.org";
@@ -19,7 +20,7 @@ const int BROKER_PORT = 1883;
 
 // Tópico inscrito
 const char* TOPICO = "senai-code-xp/vagas/06";
-
+String TOPICO_GERAL = "senai-code-xp/vagas/";
 
 // Pinos LCD
 const int en = 6, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
@@ -28,11 +29,47 @@ LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 // Tempo para reconexão
 long timeCon = 0;
-int intervaloCon = 5000;
+int intervaloCon = 2000;
+
+// Tempo para desligar display
+long timeDisplay = 0;
+int intervaloDisplay = 10000;
+
+// Tempo para verificar vagas
+long timeVagas = 0;
+int intervaloVagas = 1000;
+
+
+// Vagas
+int numeroVagas = 0;
+int estadoVaga06 = -1;
+
+char message_buff[100];
 
 void callback(char* topic, byte* payload, unsigned int length) {
+
+  Serial.println("Recebeu da fila: ");
+  acionarLed(pinoRecebe);
+
+  Serial.println(topic);
+  String str_topic = topic;
+  //str_topic = str_topic.substring(TOPICO_GERAL.length()-1);
+  Serial.println("Topico convertido:");
+  Serial.println(str_topic);
+
+  if (strcmp(topic,TOPICO)==0){
+    Serial.println("Topico OK!");
+  }
   
-  Serial.println("Recebeu da fila!");
+  char* payloadAsChar = payload;
+  // Workaround para pequeno bug na biblioteca
+  payloadAsChar[length] = 0;
+
+  // Converter em tipo String para conveniência
+  String msg = String(payloadAsChar);
+  estadoVaga06 = msg.toInt();
+
+
 }
 
 EthernetClient ethClient;
@@ -44,6 +81,7 @@ void setup() {
   initEthernet();
 
   pinMode(pinoConexao, OUTPUT);
+  pinMode(pinoRecebe, OUTPUT);
 
   reconnectMQTT();
 
@@ -51,21 +89,36 @@ void setup() {
     turnLed(pinoConexao, 1);
   }
 
-  // set up the LCD's number of columns and rows:
+  // Inicializando LCD (Colunas e linhas)
   lcd.begin(16, 2);
   // Print a message to the LCD.
-  lcd.print("hello, world!");
+
 }
 
 void loop() {
-
   verificaConexaoEMQTT(); //garante funcionamento da conexão ao broker MQTT
   client.loop();
   // set the cursor to column 0, line 1
   // (note: line 1 is the second row, since counting begins with 0):
-  lcd.setCursor(0, 1);
-  // print the number of seconds since reset:
-  lcd.print(millis() / 1000);
+
+  imprimeVagas();
+}
+
+void imprimeVagas() {
+  if (millis() - timeVagas > intervaloVagas) {
+    if (estadoVaga06 == 1) {
+      numeroVagas = 1;
+    }
+    else if (estadoVaga06 == 0) {
+      numeroVagas = 0;
+    }
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Vaga 06:");
+    lcd.setCursor(0, 1);
+    lcd.print(numeroVagas);
+    timeVagas = millis();
+  }
 }
 
 //Função: inicializa comunicação serial com baudrate 9600 (para fins de monitorar no terminal serial o que está acontecendo).
@@ -82,23 +135,19 @@ void reconnectMQTT() {
     Serial.print("* Tentando se conectar ao Broker MQTT: ");
     Serial.println(BROKER_MQTT);
 
-    if (client.connect(ID_MQTT, NULL, NULL, TOPICO, 0, 1, "")) {
+    if (client.connect(ID_MQTT, NULL, NULL)) {
       Serial.println("Conectado com sucesso ao broker MQTT!");
       turnLed(pinoConexao, 1);
       Serial.flush();
 
-      if (client.subscribe(TOPICO)){
+      if (client.subscribe(TOPICO)) {
         Serial.print("Inscrito em: "); Serial.println(TOPICO);
-        
       }
-      lcd.clear();
-      lcd.print("Conectado");
+
     } else {
       Serial.println("Falha ao reconectar no broker.");
       Serial.println("Havera nova tentatica de conexao em 2s");
       Serial.flush();
-      lcd.clear();
-      lcd.print("Desconectado");
       timeCon = millis();
       turnLed(pinoConexao, 0);
 
@@ -115,11 +164,21 @@ void turnLed(uint8_t pino, int state) {
   }
 }
 
+// Pisca led
+void acionarLed(uint8_t pino) {
+  digitalWrite(pino, HIGH);
+  delay(20);
+  digitalWrite(pino, LOW);
+  delay(20);
+  digitalWrite(pino, HIGH);
+  delay(20);
+  digitalWrite(pino, LOW);
+}
+
+
 //Função: verifica o estado das conexões Ethernet e ao broker MQTT. Em caso de desconexão (qualquer uma das duas), a conexão é refeita.
 void verificaConexaoEMQTT() {
   if (!client.connected()) {
-    lcd.clear();
-    lcd.print("Desconectado");
     turnLed(pinoConexao, 0);
     reconnectMQTT(); //se não há conexão com o Broker, a conexão é refeita
   }
