@@ -9,6 +9,9 @@
 #define pinoConexao  A2  // Led conexão
 #define pinoRecebe   A3
 
+// Estados vagas: -1 = sem conexão, -2 = sem conexão (foi setado)
+
+
 // Atualizar ultimo valor para ID do seu Kit para evitar duplicatas
 const byte mac[] = { 0xDE, 0xED, 0xBA, 0xFE, 0xFE, 0x05 };
 
@@ -70,11 +73,18 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
     // Converter em tipo String para conveniência
     String msg = String(payloadAsChar);
-    estadoVaga[vaga] = msg.toInt();
+    if (length) {
+      estadoVaga[vaga] = msg.toInt();
+    }
+    else {
+      estadoVaga[vaga] = -2;
+      Serial.println("Vaga desconectada!");
+    }
 
-    Serial.print("EstadoVaga: ");
+    Serial.print("Estado Vaga: ");
     Serial.println(estadoVaga[vaga]);
-    Serial.println("");
+    Serial.print("");
+
   }
 }
 
