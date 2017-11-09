@@ -58,7 +58,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
   if (isNumeric(topic[20], topic[21])) {
     // Conversão ASCII
-    int int_vaga1 = (int) topic[20] - 48;
+    int int_vaga1 = (int) topic[20] - 48; // 48 = "0" (zero) em ASCII
     int int_vaga2 = (int) topic[21] - 48;
 
     // Juntando os dígitos
