@@ -15,12 +15,13 @@
 const byte mac[] = { 0xDE, 0xED, 0xBA, 0xFE, 0xFE, 0x06 };
 
 // Endereço do Cloud MQTT
-const char* BROKER_MQTT = "test.mosquitto.org";
+//const char* BROKER_MQTT = "192.168.3.186";
+IPAddress BROKER_MQTT(192, 168, 3, 186);
 
 // Valor da porta do servidor MQTT. 1883 é o valor padrão. 18575
 const int BROKER_PORT = 1883;
 
-const char* TOPICO = "senai-code-xp/vagas/06";
+const char* TOPICO = "vagas/06";
 
 #define ID_MQTT  "arduino-06"     //id mqtt (para identificação de sessão)
 
@@ -150,7 +151,7 @@ void initSerial() {
 
 //Função: inicializa e conecta-se na internet
 void initEthernet() {
-  
+
   if (!Ethernet.begin(mac)) {
     Serial.println("DHCP Falhou!");
   } else {
@@ -164,7 +165,7 @@ void reconnectMQTT() {
     Serial.print("* Tentando se conectar ao Broker MQTT: ");
     Serial.println(BROKER_MQTT);
 
-    if (client.connect(ID_MQTT, NULL, NULL, TOPICO, 0, 1, "")) {
+    if (client.connect(ID_MQTT, TOPICO, 0, 1, "")) {
       Serial.println("Conectado com sucesso ao broker MQTT!");
       turnLed(pinoConexao, 1);
       Serial.flush();
