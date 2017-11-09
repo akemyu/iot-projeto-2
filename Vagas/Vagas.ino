@@ -102,18 +102,19 @@ void lerSensorUltrassonico() {
   int distancia = ultrasonic.distanceRead();
   int estadoLeitura;
   Serial.print("Distancia: "); Serial.println(distancia);
-  if (distancia < 10) {
 
-    estadoLeitura = 0;
-  } else {
-    estadoLeitura = 1;
+  if (distancia != 0) {
+    if (distancia < 10) {
+      estadoLeitura = 0;
+    } else {
+      estadoLeitura = 1;
+    }
+    if (estadoLeitura != estadoVaga) {
+      enviarEstado(estadoLeitura);
+      ligarLedVaga(estadoLeitura);
+      estadoVaga = estadoLeitura;
+    }
   }
-  if (estadoLeitura != estadoVaga) {
-    enviarEstado(estadoLeitura);
-    ligarLedVaga(estadoLeitura);
-    estadoVaga = estadoLeitura;
-  }
-
 }
 
 void enviarEstado(int state) {
@@ -174,7 +175,6 @@ void reconnectMQTT() {
 
       timeCon = millis();
       turnLed(pinoConexao, 0);
-
     }
   }
 }
@@ -186,4 +186,3 @@ void verificaConexaoEMQTT() {
     reconnectMQTT(); //se não há conexão com o Broker, a conexão é refeita
   }
 }
-
