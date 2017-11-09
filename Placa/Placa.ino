@@ -14,20 +14,25 @@
 
 // Atualizar ultimo valor para ID do seu Kit para evitar duplicatas
 const byte mac[] = { 0xDE, 0xED, 0xBA, 0xFE, 0xFE, 0x05 };
+IPAddress IP_FIXO(192, 168, 3, 60);
 
 // Endereço do Cloud MQTT
-const char* BROKER_MQTT = "test.mosquitto.org";
+//const char* BROKER_MQTT = "test.mosquitto.org";
+IPAddress BROKER_MQTT(192, 168, 3, 186);
+
 
 // Valor da porta do servidor MQTT. 1883 é o valor padrão. 18575
 const int BROKER_PORT = 1883;
 
 // Tópico inscrito
-const char* TOPICO = "senai-code-xp/vagas/+";
+const char* TOPICO = "vagas/+";
 
 // Pinos LCD
-const int en = 6, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
+/*const int en = 6, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 #define rs A5
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+*/
+LiquidCrystal lcd(A5, 6, 5, 4, 3, 2);
 
 // Tempo para reconexão
 long timeCon = 0;
@@ -39,27 +44,26 @@ int intervaloDisplay = 10000;
 
 // Tempo para verificar vagas
 long timeVagas = 0;
-int intervaloVagas = 2000;
+int intervaloVagas = 1000;
 
 
 // Vagas
 int vagasDisponiveis = 0;
 int vagasOcupadas = 0;
-const int tamVaga = 31; // Número de vagas disponíveis
+const int tamVaga = 43; // Número de vagas disponíveis
 int estadoVaga[tamVaga]; // Estados das vagas existentes
-
-char message_buff[100];
 
 void callback(char* topic, byte* payload, unsigned int length) {
 
   //Serial.println("Recebeu da fila: ");
   Serial.println(topic);
   acionarLed(pinoRecebe);
+  timeDisplay = millis();
 
-  if (isNumeric(topic[20], topic[21])) {
+  if (isNumeric(topic[6], topic[7])) {
     // Conversão ASCII
-    int int_vaga1 = (int) topic[20] - 48; // 48 = "0" (zero) em ASCII
-    int int_vaga2 = (int) topic[21] - 48;
+    int int_vaga1 = (int) topic[6] - 48; // 48 = "0" (zero) em ASCII
+    int int_vaga2 = (int) topic[7] - 48;
 
     // Juntando os dígitos
     int vaga = int_vaga1 * 10 + int_vaga2;
@@ -107,7 +111,6 @@ void setup() {
 
   // Inicializando LCD (Colunas e linhas)
   lcd.begin(16, 2);
-
   preencherArray();
 
 }
@@ -119,6 +122,7 @@ void loop() {
   // (note: line 1 is the second row, since counting begins with 0):
 
   imprimirVagas();
+  desligarLCD();
 }
 
 void imprimirVagas() {
@@ -153,6 +157,17 @@ void imprimirVagas() {
   }
 }
 
+void desligarLCD(){
+    if (millis() - timeDisplay > intervaloDisplay) {
+      lcd.noDisplay();
+    }
+    else{
+      lcd.display();
+    }
+    
+}
+
+
 //Função: inicializa comunicação serial com baudrate 9600 (para fins de monitorar no terminal serial o que está acontecendo).
 void initSerial() {
   Serial.begin(9600);
@@ -167,7 +182,7 @@ void reconnectMQTT() {
     Serial.print("* Tentando se conectar ao Broker MQTT: ");
     Serial.println(BROKER_MQTT);
 
-    if (client.connect(ID_MQTT, NULL, NULL)) {
+    if (client.connect(ID_MQTT)) {
       Serial.println("Conectado com sucesso ao broker MQTT!");
       turnLed(pinoConexao, 1);
       Serial.flush();
@@ -229,10 +244,12 @@ void verificaConexaoEMQTT() {
 
 void initEthernet() {
   Serial.println("Iniciando Ethernet!");
-  if (!Ethernet.begin (mac)) {
+  /* if (!Ethernet.begin(mac)) {
     Serial.println("DHCP falhou!");
   } else {
     Serial.println(Ethernet.localIP());
-  }
+  } */
+  // IP fixo (para economizar mem.)
+  Ethernet.begin(mac, IP_FIXO);
 }
 
